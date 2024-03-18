@@ -9,3 +9,24 @@ function confirm_ready(answer){
         }
     )
 }
+
+$(document).ready(() => {
+    socket.on("command", (data) => {
+        if (typeof data.command === "object" && data.command.event === "survey") {
+            $("#instr").html(data.command.survey);
+
+            $("#survey_button").click(() => {
+                if (validateForm()) {
+                    const answers = get_answers();
+                    socket.emit("message_command", {
+                        command: {
+                            event: "submit_survey",
+                            answers: answers
+                        },
+                        room: self_room
+                    });
+                }
+            });
+        }
+    });
+});

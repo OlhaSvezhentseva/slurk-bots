@@ -21,7 +21,7 @@ EN_STEMMER = SnowballStemmer("english")
 
 from taboo.dataloader import Dataloader
 from taboo.config import EXPLAINER_PROMPT, GUESSER_PROMPT, LEVEL_WORDS, WORDS_PER_ROOM, COLOR_MESSAGE, STANDARD_COLOR, \
-    STARTING_POINTS, TIMEOUT_TIMER, LEAVE_TIMER, WAITING_PARTNER_TIMER
+    STARTING_POINTS, TIMEOUT_TIMER, LEAVE_TIMER, WAITING_PARTNER_TIMER, SURVEY
 from templates import TaskBot
 
 LOG = logging.getLogger(__name__)
@@ -45,6 +45,7 @@ class Session:
         }
         self.timer = None
         self.left_room_timer = dict()
+        self.can_close_room = False
         self._game_over = False
 
     @property
@@ -160,19 +161,19 @@ class TabooBot(TaskBot):
             self.send_individualised_instructions(room_id)
             # use sleep so that people first read the instructions!
             # sleep(2)
-        self.sio.emit(
-            "text",
-            {
-                "message": (
-                    "Are you ready? <br>"
-                    "<button class='message_button' onclick=\"confirm_ready('yes')\">YES</button> "
-                    "<button class='message_button' onclick=\"confirm_ready('no')\">NO</button>"
-                ),
-                "room": room_id,
-                # "receiver_id": player["id"],
-                "html": True,
-            },
-        )
+            self.sio.emit(
+                "text",
+                {
+                    "message": (
+                        "Are you ready? <br>"
+                        "<button class='message_button' onclick=\"confirm_ready('yes')\">YES</button> "
+                        "<button class='message_button' onclick=\"confirm_ready('no')\">NO</button>"
+                    ),
+                    "room": room_id,
+                    # "receiver_id": player["id"],
+                    "html": True,
+                },
+            )
 
     @staticmethod
     def message_callback(success, error_msg="Unknown Error"):
@@ -324,13 +325,38 @@ class TabooBot(TaskBot):
                     LOG.debug(f"{answer}")
                     if data["command"]["answer"] == "yes":
                         self._command_ready(data["room"], data["user"]["id"])
+                        return
                     elif data["command"]["answer"] == "no":
                         self.send_message_to_user(
                             "OK, read the instructions carefully and click on <yes> once you are ready.",
                             data["room"],
                             data["user"]["id"],
                         )
-                return
+                elif event == "submit_survey":
+                    # if this_session.submited_survey[user_id] is True:
+                    #     self.sio.emit(
+                    #         "text",
+                    #         {
+                    #             "message": COLOR_MESSAGE.format(
+                    #                 message="You already submitted an answer!",
+                    #                 color=WARNING_COLOR,
+                    #             ),
+                    #             "room": room_id,
+                    #             "receiver_id": user_id,
+                    #             "html": True,
+                    #         },
+                    #     )
+                    #     return
+
+                    survey_data = data["command"]["answers"]
+                    survey_data["user_id"] = user_id
+                    LOG.debug(f"The survey data is: {survey_data}")
+
+                    # this_session.submited_survey[user_id] = True
+
+                    self.log_event("survey_result", survey_data, room_id)
+                    self.terminate_experiment(room_id, user_id)
+                    return
 
             if data["command"].startswith("ready"):
                 self._command_ready(room_id, user_id)
@@ -584,19 +610,19 @@ class TabooBot(TaskBot):
             )
 
     def start_round(self, room_id):
-        if not self.sessions[room_id].words:
-            self.sio.emit(
-                "text",
-                {
-                    "room": room_id,
-                    "message": (
-                        "The experiment is over 🎉 🎉 thank you very much for your time!"
-                    ),
-                    "html": True,
-                },
-            )
-            self.confirmation_code(room_id, 'success')
-            self.close_game(room_id)
+        # if not self.sessions[room_id].words:
+        #     self.sio.emit(
+        #         "text",
+        #         {
+        #             "room": room_id,
+        #             "message": (
+        #                 "The experiment is over 🎉 🎉 thank you very much for your time!"
+        #             ),
+        #             "html": True,
+        #         },
+        #     )
+        #     self.confirmation_code(room_id, 'success')
+        #     self.close_game(room_id)
         # send the instructions for the round
         round_n = (WORDS_PER_ROOM - len(self.sessions[room_id].words)) + 1
 
@@ -641,6 +667,30 @@ class TabooBot(TaskBot):
         # word list gets smaller, next round starts
         self.sessions[room_id].words.pop(0)
         if not self.sessions[room_id].words:
+            # # Display survey on display area
+            # response = requests.patch(
+            #     f"{self.uri}/rooms/{room_id}/text/instr_title",
+            #     json={"text": "Complete the survey"},
+            #     headers={"Authorization": f"Bearer {self.token}"},
+            # )
+            # self.sio.emit(
+            #     "message_command",
+            #     {
+            #         "command": {"event": "survey", "survey": SURVEY},
+            #         "room": room_id,
+            #     },
+            # )
+            # self.sio.emit(
+            #         "text",
+            #         {
+            #             "room": room_id,
+            #             "message": COLOR_MESSAGE.format(
+            #             message="Almost finished! fill out the survey and click on submit to complete the experiment",
+            #             color='Red',
+            #         ),
+            #             "html": True,
+            #         },
+            #     )
             self.sio.emit(
                 "text",
                 {
@@ -654,7 +704,31 @@ class TabooBot(TaskBot):
             self.confirmation_code(room_id, 'success')
             self.close_game(room_id)
             return
+
         self.start_round(room_id)
+
+    def terminate_experiment(self, room_id, user_id):
+        # self.room_to_read_only(
+        #     room_id)
+        self.sio.emit(
+            "text",
+            {
+                "room": room_id,
+                "message": (
+                    "The experiment is over 🎉 🎉 thank you very much for your time!"
+                ),
+                "receiver_id": user_id,
+                "html": True,
+            },
+        )
+        self.confirmation_code(room_id, status='success', user_id=user_id)
+        # self.close_game(room_id)
+        # if possible close game for everyone
+        if self.sessions[room_id].can_close_room:
+            self.close_game(room_id)
+            return
+
+        self.sessions[room_id].can_close_room = True
 
     def confirmation_code(self, room_id, status, user_id=None):
         """Generate token that will be sent to each player."""

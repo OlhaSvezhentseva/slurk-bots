@@ -76,7 +76,7 @@
         "submit-message": "send-intercepted-message",
         "print-history": ["attribute-history", "markdown-history"],
         "typing-users": "typing-users",
-      "plain":["taboo"]
+      "plain":["taboo", "survey"]
     },
     "show_latency": false
 }

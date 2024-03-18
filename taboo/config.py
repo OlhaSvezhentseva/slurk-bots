@@ -1,7 +1,9 @@
 import os
 import json
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SURVEY = Path(f"{ROOT}/taboo/data/survey.html").read_text()
 
 with open(os.path.join(ROOT, "taboo", "data", "intitial_explainer_prompt.txt"), "r") as my_file:
     EXPLAINER_PROMPT = my_file.read()
