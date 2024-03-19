@@ -1,0 +1,29 @@
+<form id="surveyForm" onkeydown="return event.key != 'Enter';">
+    <fieldset style="padding: 10px; margin-bottom: 10px;">
+        <legend>Rate your playing experience:</legend>
+        <div class="horizontal-group">
+            <label><input type="radio" name="playing_experience" value="1"> 1 - Poor</label>
+            <label><input type="radio" name="playing_experience" value="2"> 2 - Average</label>
+            <label><input type="radio" name="playing_experience" value="3"> 3 - Excellent</label>
+        </div>
+        <span class="error-message" style="color: #FF0000; display: block;" id="errorExperience"></span>
+    </fieldset>
+
+    <fieldset style="padding: 10px; margin-bottom: 10px;">
+        <legend>Did you encounter any problems?</legend>
+        <div class="vertical-group">
+            <label><input type="radio" name="player_rating" value="1"> 1 - No problems</label>
+            <label><input type="radio" name="player_rating" value="2"> 2 - My partner left or was inactive</label>
+            <label><input type="radio" name="player_rating" value="3"> 3 - I did not understand the task</label>
+            <label><input type="radio" name="player_rating" value="4"> 4 - My partner did not understand the task</label>
+            <label><input type="radio" name="player_rating" value="5"> 5 - There were technical problems with the platform</label>
+            <label><input type="radio" name="player_rating" value="6"> 6 - Other</label>
+            <input type="text" name="player_rating_other" style="width: calc(100% - 22px); margin-top: 5px; display: none;" placeholder="Please specify"> <!-- Additional input for 'Other' option -->
+        </div>
+        <span class="error-message" style="color: #FF0000; display: block;" id="errorPartner"></span>
+    </fieldset>
+
+    <button class="button" role="button" id="survey_button">Submit</button> <!-- Moved inside the form -->
+
+    <p style="margin-top: 10px; margin-bottom: 10px; color: #FF0000; text-align: center;">Remember to copy your token from the chat window on the left once you have completed the survey</p>
+</form>

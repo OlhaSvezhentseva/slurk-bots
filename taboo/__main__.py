@@ -31,6 +31,7 @@ class Session:
     # what happens between 2 players
     def __init__(self):
         self.players = list()
+        self.submited_survey = dict()
         self.words = Dataloader(LEVEL_WORDS, WORDS_PER_ROOM)
         LOG.debug(f"The words are {self.words}")
         self.word_to_guess = None
@@ -413,6 +414,7 @@ class TabooBot(TaskBot):
                     sleep(0.5)
                     self.update_reward(room_id, 0)
                     self.load_next_game(room_id)
+                    return
                 else:
                     self.set_message_privilege(self.sessions[room_id].guesser, True)
                     # assign writing rights to other user
@@ -485,6 +487,7 @@ class TabooBot(TaskBot):
                         sleep(0.5)
                         self.update_reward(room_id, 1)
                         self.load_next_game(room_id)
+                        return
 
                     else:
                         # guess is false
@@ -540,6 +543,7 @@ class TabooBot(TaskBot):
                         self.update_reward(room_id, 0)
                     # start new round (because 3 guesses were used)
                     self.load_next_game(room_id)
+                    return
 
                 # in any case update rights
                 self.set_message_privilege(self.sessions[room_id].explainer, True)
@@ -667,42 +671,42 @@ class TabooBot(TaskBot):
         # word list gets smaller, next round starts
         self.sessions[room_id].words.pop(0)
         if not self.sessions[room_id].words:
-            # # Display survey on display area
-            # response = requests.patch(
-            #     f"{self.uri}/rooms/{room_id}/text/instr_title",
-            #     json={"text": "Complete the survey"},
-            #     headers={"Authorization": f"Bearer {self.token}"},
-            # )
-            # self.sio.emit(
-            #     "message_command",
-            #     {
-            #         "command": {"event": "survey", "survey": SURVEY},
-            #         "room": room_id,
-            #     },
-            # )
-            # self.sio.emit(
-            #         "text",
-            #         {
-            #             "room": room_id,
-            #             "message": COLOR_MESSAGE.format(
-            #             message="Almost finished! fill out the survey and click on submit to complete the experiment",
-            #             color='Red',
-            #         ),
-            #             "html": True,
-            #         },
-            #     )
+            # Display survey on display area
+            response = requests.patch(
+                f"{self.uri}/rooms/{room_id}/text/instr_title",
+                json={"text": "Complete the survey"},
+                headers={"Authorization": f"Bearer {self.token}"},
+            )
             self.sio.emit(
-                "text",
+                "message_command",
                 {
+                    "command": {"event": "survey", "survey": SURVEY},
                     "room": room_id,
-                    "message": (
-                        "The experiment is over 🎉 🎉 thank you very much for your time!"
-                    ),
-                    "html": True,
                 },
             )
-            self.confirmation_code(room_id, 'success')
-            self.close_game(room_id)
+            self.sio.emit(
+                    "text",
+                    {
+                        "room": room_id,
+                        "message": COLOR_MESSAGE.format(
+                        message="Almost finished! fill out the survey and click on submit to complete the experiment",
+                        color='Red',
+                    ),
+                        "html": True,
+                    },
+                )
+            # self.sio.emit(
+            #     "text",
+            #     {
+            #         "room": room_id,
+            #         "message": (
+            #             "The experiment is over 🎉 🎉 thank you very much for your time!"
+            #         ),
+            #         "html": True,
+            #     },
+            # )
+            # self.confirmation_code(room_id, 'success')
+            # self.close_game(room_id)
             return
 
         self.start_round(room_id)
@@ -722,7 +726,6 @@ class TabooBot(TaskBot):
             },
         )
         self.confirmation_code(room_id, status='success', user_id=user_id)
-        # self.close_game(room_id)
         # if possible close game for everyone
         if self.sessions[room_id].can_close_room:
             self.close_game(room_id)
